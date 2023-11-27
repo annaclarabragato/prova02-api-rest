@@ -1,6 +1,6 @@
 import random
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from fastapi.responses import JSONResponse
 from sqlmodel import select
 
@@ -29,8 +29,12 @@ def cria_reserva(reserva: Reserva):
                 content={"message": f"Voo com id {reserva.voo_id} não encontrado."},
                 status_code=404,
             )
-
-        # TODO - Validar se existe uma reserva para o mesmo documento
+        
+        if reserva.documento == Reserva.documento:
+            return JSONResponse(
+                content={"message": f"Já existe uma reserva com esse número {reserva.documento} de documento."},
+                status_code=400,
+            )
 
         codigo_reserva = "".join(
             [str(random.randint(0, 999)).zfill(3) for _ in range(2)]
@@ -45,7 +49,45 @@ def cria_reserva(reserva: Reserva):
 
 @reservas_router.post("/{codigo_reserva}/checkin/{num_poltrona}")
 def faz_checkin(codigo_reserva: str, num_poltrona: int):
+    with get_session() as session:
+        reserva = session.exec(select(Reserva).where(Reserva.codigo_reserva == reserva.codigo_reserva)).first()
+
+        if not reserva:
+            return JSONResponse(
+                content={"message": f"reserva com código {reserva.codigo_reserva} não encontrado."},
+                status_code=404,
+            )
+        
+        if reserva:
+            return JSONResponse(
+                content={"message": f"reserva com código {reserva.codigo_reserva} feita."},
+            )
+        
+
     # TODO - Implementar reserva de poltrona
     pass
+
+@reservas_router.patch("/{reserva}/{codigo_reserva}/checkin/{num_poltrona}")
+def faz_checkin(codigo_reserva: str, num_poltrona: int):
+    with get_session() as session:
+        reserva = session.exec(select(Reserva).where(Reserva.id == codigo_reserva)).first()
+
+        if not reserva:
+            return JSONResponse(
+                content={"message": f"reserva com código {codigo_reserva} não encontrado."},
+                status_code=404,
+            )
+        
+        if reserva:
+            return JSONResponse(
+                content={"message": f"reserva com código {codigo_reserva} feita."},
+            )
+        
+        if not num_poltrona:
+            return JSONResponse(
+                content={"message": f"poltrona ocupada."},
+                status_code=403,
+            )
+
 
 # TODO - Implementar troca de reserva de poltrona
